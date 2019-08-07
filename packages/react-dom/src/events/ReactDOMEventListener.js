@@ -31,6 +31,11 @@ const callbackBookkeepingPool = [];
  * Find the deepest React component completely containing the root of the
  * passed-in instance (for use when entire React trees are nested within each
  * other). If React trees are not nested, returns null.
+ *
+ * SPA 返回的就是那个#root的DOM，但是每次调用都会遍历，所以React说搞个缓存是比较好的，
+ * 但是react觉得做root缓存就得搞个观察者监听所有的DOM变化，比较麻烦，所以没弄
+ *
+ * 不明白为什么要搞观察者啊，根DOM会在什么情况改变啊？
  */
 function findRootContainerNode(inst) {
   // TODO: It may be a good idea to cache this to prevent unnecessary DOM
@@ -47,6 +52,7 @@ function findRootContainerNode(inst) {
 }
 
 // Used to store ancestor hierarchy in top level callback
+// 顶层回调名单，存储顶层回调的ancestor hierarchy
 function getTopLevelCallbackBookKeeping(
   topLevelType,
   nativeEvent,
@@ -76,7 +82,7 @@ function releaseTopLevelCallbackBookKeeping(instance) {
   instance.topLevelType = null;
   instance.nativeEvent = null;
   instance.targetInst = null;
-  instance.ancestors.length = 0;
+  instance.ancestors.length = 0; // 清空数组还复用原来的对象
   if (callbackBookkeepingPool.length < CALLBACK_BOOKKEEPING_POOL_SIZE) {
     callbackBookkeepingPool.push(instance);
   }
@@ -89,7 +95,12 @@ function handleTopLevel(bookKeeping) {
   // It's important that we build the array of ancestors before calling any
   // event handlers, because event handlers can modify the DOM, leading to
   // inconsistencies with ReactMount's node cache. See #1105.
-  let ancestor = targetInst;
+
+  // 遍历hierarchy防止嵌套的组件
+  // 调用事件回调之前必须先创建祖先列表，因为事件回调肯能修改DOM，破坏已经挂载的
+  // React Node 缓存
+
+  let ancestor = targetInst; // targetInst instanceof FiberNode === true
   do {
     if (!ancestor) {
       bookKeeping.ancestors.push(ancestor);
@@ -100,9 +111,12 @@ function handleTopLevel(bookKeeping) {
       break;
     }
     bookKeeping.ancestors.push(ancestor);
+    // ancestor 是 div#root 对应的 FiberNode，讲道理SPA就是null
+    // 这在干啥
     ancestor = getClosestInstanceFromNode(root);
   } while (ancestor);
 
+  // 遍历祖先
   for (let i = 0; i < bookKeeping.ancestors.length; i++) {
     targetInst = bookKeeping.ancestors[i];
     runExtractedEventsInBatch(

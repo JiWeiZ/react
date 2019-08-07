@@ -14,6 +14,9 @@ import invariant from 'shared/invariant';
  *
  * This is used to conserve memory by avoiding array allocations.
  *
+ *
+ * 通过避免数组分配来节省内存
+ * @param { SyntheticEvent } SyntheticEvent
  * @return {*|array<*>} An accumulation of items.
  */
 function accumulate<T>(

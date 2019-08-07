@@ -49,6 +49,15 @@ import isEventSupported from './isEventSupported';
  *
  *  - The `EventPluginHub` then dispatches the events.
  *
+ *  - ReactDOMEventListener 使用顶层代理的方式将原生事件统统代理到顶层节点上
+ *    由于React 接收到的事件是合成事件，所以合成事件对原生事件的映射及其可插拔性就显得
+ *    十分重要。这也就是为什么React要把事件用插件系统实现
+ *
+ *  - 合成事件到原生事件的映射这一过程会去抹平浏览器差异
+ *
+ *  - react将原生事件以及捕获他们的顶层事件一起转发到`EventPluginHub` 里面，然后
+ *    `EventPluginHub`回去询问各个插件是否需要提取合成事件
+ *
  * Overview of React and the event system:
  *
  * +------------+    .
@@ -84,6 +93,7 @@ import isEventSupported from './isEventSupported';
  *    React Core     .  General Purpose Event Plugin System
  */
 
+// 当前已经监听的合成事件名集合
 const alreadyListeningTo = {};
 let reactTopListenersCounter = 0;
 
@@ -129,8 +139,22 @@ export function listenTo(
 ) {
   const isListening = getListeningForDocument(mountAt);
   const dependencies = registrationNameDependencies[registrationName];
+  /**
+   * dependencies = [
+      0: "blur"
+      1: "change"
+      2: "click"
+      3: "focus"
+      4: "input"
+      5: "keydown"
+      6: "keyup"
+      7: "selectionchange"
+   * ]
+   */
 
+  // 确定哪些事件捕获处理，哪些冒泡处理
   for (let i = 0; i < dependencies.length; i++) {
+    // dependency 是 合成事件名
     const dependency = dependencies[i];
     if (!(isListening.hasOwnProperty(dependency) && isListening[dependency])) {
       switch (dependency) {

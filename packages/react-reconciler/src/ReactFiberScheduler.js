@@ -2533,6 +2533,10 @@ function interactiveUpdates<A, B, R>(fn: (A, B) => R, a: A, b: B): R {
   // This needs to happen before we read any handlers, because the effect of
   // the previous event may influence which handlers are called during
   // this event.
+
+  // 如果有pending的交互更新，同步flush
+  // 读取handler之前必须先flush（flush更新队列吧？），因为前一个事件的副作用可能影响当前
+  // 事件的处理函数
   if (
     !isBatchingUpdates &&
     !isRendering &&
@@ -2562,6 +2566,7 @@ function flushInteractiveUpdates() {
     lowestPriorityPendingInteractiveExpirationTime !== NoWork
   ) {
     // Synchronously flush pending interactive updates.
+    // 同步 flush 处于 pending 状态的 交互式更新
     performWork(lowestPriorityPendingInteractiveExpirationTime, false);
     lowestPriorityPendingInteractiveExpirationTime = NoWork;
   }

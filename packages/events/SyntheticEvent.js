@@ -54,6 +54,14 @@ function functionThatReturnsFalse() {
  * normalizing browser quirks. Subclasses do not necessarily have to implement a
  * DOM interface; custom application-specific events can also subclass this.
  *
+ * 合成事件是通过事件插件派发的，通常合成事件用来响应顶层的事件代理（一般是document上的事件代理）
+ *
+ * 这些系统应该使用池化去减少垃圾回收的频率。系统应该检查 `isPersistent` 然后确定当前事件在派发
+ * 之后是否需要从池子中释放掉。 需要持久化某个事件应该调用`persist`。
+ *
+ * 合成事件（和子类）通过规范化浏览器差异实现了DOM Level 3 Events API。 子类不一定要实现DOM接
+ * 口; 自定义的针对特定应用的事件也可以继承合成事件。
+ *
  * @param {object} dispatchConfig Configuration used to dispatch this event.
  * @param {*} targetInst Marker identifying the event target.
  * @param {object} nativeEvent Native browser event.
@@ -78,6 +86,7 @@ function SyntheticEvent(
   this._targetInst = targetInst;
   this.nativeEvent = nativeEvent;
 
+  // 接口是作为静态属性传进来的，把接口的属性挂到实例上
   const Interface = this.constructor.Interface;
   for (const propName in Interface) {
     if (!Interface.hasOwnProperty(propName)) {
@@ -88,6 +97,7 @@ function SyntheticEvent(
     }
     const normalize = Interface[propName];
     if (normalize) {
+      // 事件接口提供的方法只能接收事件作为参数？
       this[propName] = normalize(nativeEvent);
     } else {
       if (propName === 'target') {
@@ -122,6 +132,7 @@ Object.assign(SyntheticEvent.prototype, {
     if (event.preventDefault) {
       event.preventDefault();
     } else if (typeof event.returnValue !== 'unknown') {
+      // IE7 返回 "unknown" 而不是 "undefined"
       event.returnValue = false;
     }
     this.isDefaultPrevented = functionThatReturnsTrue;
@@ -141,6 +152,10 @@ Object.assign(SyntheticEvent.prototype, {
       // any references to cancelBubble throw "Member not found".  A
       // typeof check of "unknown" circumvents this issue (and is also
       // IE specific).
+
+      // ChangeEventPlugin 为 IE 注册了一个 propertychange 事件。该事件不支
+      // 持冒泡或取消，此外任何对cancelBubble的引用都会抛出"Member not found"
+      // 的异常。检查 IE 独有的 typeof 'unknown' 规避了这个问题
       event.cancelBubble = true;
     }
 
@@ -151,6 +166,9 @@ Object.assign(SyntheticEvent.prototype, {
    * We release all dispatched `SyntheticEvent`s after each event loop, adding
    * them back into the pool. This allows a way to hold onto a reference that
    * won't be added back into the pool.
+   *
+   *
+   * persist 用来持久化事件
    */
   persist: function() {
     this.isPersistent = functionThatReturnsTrue;
@@ -230,6 +248,9 @@ SyntheticEvent.Interface = EventInterface;
 SyntheticEvent.extend = function(Interface) {
   const Super = this;
 
+  // Object.create 的 polyfill
+  // ES6的写法：
+  // const prototype = Object.create(Super.prototype)
   const E = function() {};
   E.prototype = Super.prototype;
   const prototype = new E();

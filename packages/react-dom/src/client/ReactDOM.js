@@ -154,6 +154,7 @@ if (__DEV__) {
   };
 }
 
+// events 受控组件相关，不知道干啥的，先过
 setRestoreImplementation(restoreControlledState);
 
 export type DOMContainer =
@@ -174,6 +175,7 @@ type Batch = FiberRootBatch & {
   // The ReactRoot constructor is hoisted but the prototype methods are not. If
   // we move ReactRoot to be above ReactBatch, the inverse error occurs.
   // $FlowFixMe Hoisting issue.
+
   _root: Root,
   _hasChildren: boolean,
   _children: ReactNodeList,
@@ -194,6 +196,15 @@ type Root = {
 
   _internalRoot: FiberRoot,
 };
+
+
+/**
+ * ================================================================================
+ *                                 啥 是 batch
+ *  batch 是个链表
+ *
+ * ================================================================================
+ */
 
 function ReactBatch(root: ReactRoot) {
   const expirationTime = computeUniqueAsyncExpiration();
@@ -236,6 +247,7 @@ ReactBatch.prototype.then = function(onComplete: () => mixed) {
   }
   callbacks.push(onComplete);
 };
+// commit 异步 flush 所以的work
 ReactBatch.prototype.commit = function() {
   const internalRoot = this._root._internalRoot;
   let firstBatch = internalRoot.firstBatch;
@@ -258,16 +270,25 @@ ReactBatch.prototype.commit = function() {
     // This batch is not the earliest batch. We need to move it to the front.
     // Update its expiration time to be the expiration time of the earliest
     // batch, so that we can flush it without flushing the other batches.
-    if (this._hasChildren) {
+
+    // 当前的batch不是最早的batch，也就是是说不在链表头部，我们就需要把它放到前面。
+    // 然后把它的过期时间设成最早的batch的过期时间
+    // 这样我们可以把这个batch给flush掉而不flush其他的batch
+
+    if (this._hasChildren) { // 这个 if 没有意义啊，能走到这必定是 true 啊？
       expirationTime = this._expirationTime = firstBatch._expirationTime;
       // Rendering this batch again ensures its children will be the final state
       // when we flush (updates are processed in insertion order: last
       // update wins).
       // TODO: This forces a restart. Should we print a warning?
+
+      // 如果有孩子的话要重新render
+      // 目的是保证孩子的状态是最后的状态，比如多次setState取最后1次的
       this.render(this._children);
     }
 
     // Remove the batch from the list.
+    // 这就很明显了，batch是一个链表，把当前batch从链表中移除，然后放到头部
     let previous = null;
     let batch = firstBatch;
     while (batch !== this) {
@@ -315,6 +336,8 @@ ReactBatch.prototype._onComplete = function() {
   }
 };
 
+// ================================================================================
+
 type Work = {
   then(onCommit: () => mixed): void,
   _onCommit: () => void,
@@ -327,8 +350,10 @@ function ReactWork() {
   this._didCommit = false;
   // TODO: Avoid need to bind by replacing callbacks in the update queue with
   // list of Work objects.
+  // TODO: 使用Work对象列表替换更新队列中的回调，避免绑定
   this._onCommit = this._onCommit.bind(this);
 }
+// callback 入栈
 ReactWork.prototype.then = function(onCommit: () => mixed): void {
   if (this._didCommit) {
     onCommit();
@@ -361,6 +386,9 @@ ReactWork.prototype._onCommit = function(): void {
     callback();
   }
 };
+
+// ================================================================================
+
 
 function ReactRoot(
   container: DOMContainer,
@@ -416,6 +444,7 @@ ReactRoot.prototype.legacy_renderSubtreeIntoContainer = function(
   updateContainer(children, root, parentComponent, work._onCommit);
   return work;
 };
+// 实际上这个方法叫 createAndInsertBatch 更好
 ReactRoot.prototype.createBatch = function(): Batch {
   const batch = new ReactBatch(this);
   const expirationTime = batch._expirationTime;
@@ -427,6 +456,7 @@ ReactRoot.prototype.createBatch = function(): Batch {
     batch._next = null;
   } else {
     // Insert sorted by expiration time then insertion order
+    // 整个batch是按照expiration time降序排列
     let insertAfter = null;
     let insertBefore = firstBatch;
     while (
@@ -444,6 +474,8 @@ ReactRoot.prototype.createBatch = function(): Batch {
 
   return batch;
 };
+
+// ================================================================================
 
 /**
  * True if the supplied DOM node is a valid node element.
@@ -553,6 +585,8 @@ function legacyRenderSubtreeIntoContainer(
   let root: Root = (container._reactRootContainer: any);
   if (!root) {
     // Initial mount
+    // 没有 root，创建root，但是这个root并不是ReactRoot, 而是Root
+    // 这2个东西有什么区别啊？Flow的原因？
     root = container._reactRootContainer = legacyCreateRootFromDOMContainer(
       container,
       forceHydrate,

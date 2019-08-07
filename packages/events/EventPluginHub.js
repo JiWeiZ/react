@@ -30,6 +30,8 @@ import type {TopLevelType} from './TopLevelEventTypes';
 /**
  * Internal queue of events that have accumulated their dispatches and are
  * waiting to have their dispatches executed.
+ *
+ * 内部事件队列，dispatches 已近注册了，等着执行 dispatches
  */
 let eventQueue: ?(Array<ReactSyntheticEvent> | ReactSyntheticEvent) = null;
 
@@ -48,6 +50,7 @@ const executeDispatchesAndRelease = function(event: ReactSyntheticEvent) {
     }
   }
 };
+// 在干啥啊？
 const executeDispatchesAndReleaseTopLevel = function(e) {
   return executeDispatchesAndRelease(e);
 };
@@ -81,6 +84,8 @@ function shouldPreventMouseEvent(name, type, props) {
 
 /**
  * This is a unified interface for event plugins to be installed and configured.
+ *
+ * 安装和配置事件插件的统一的接口
  *
  * Event plugins can implement the following properties:
  *

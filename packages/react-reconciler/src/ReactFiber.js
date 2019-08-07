@@ -83,6 +83,8 @@ if (__DEV__) {
 
 // A Fiber is work on a Component that needs to be done or was done. There can
 // be more than one per component.
+
+// 一个 component 可以分成很多个fiber
 export type Fiber = {|
   // These first fields are conceptually members of an Instance. This used to
   // be split into a separate type and intersected with the other Fiber fields,
@@ -94,7 +96,12 @@ export type Fiber = {|
   // alternate versions of the tree. We put this on a single object for now to
   // minimize the number of objects created during the initial render.
 
+  // 所有版本的component都会共享一个实例。 我们可以轻松地将其分解为单独的对象，以避免
+  // 拷贝过多的东西到树的替代版本上。我们之所以现在将这些东西放在一个对象里面，是为了
+  // 减少初始化过程中创建的对象个数
+
   // Tag identifying the type of fiber.
+  // tag 标志着 fiber 的类型
   tag: WorkTag,
 
   // Unique identifier of this child.
@@ -102,11 +109,14 @@ export type Fiber = {|
 
   // The value of element.type which is used to preserve the identity during
   // reconciliation of this child.
+  // 用于reconciliation过程中保存element.type的值
   elementType: any,
 
   // The resolved function/class/ associated with this fiber.
+  // 与此fiber相联系的 function/class
   type: any,
 
+  // 状态节点
   // The local state associated with this fiber.
   stateNode: any,
 
@@ -150,6 +160,7 @@ export type Fiber = {|
   // parent. Additional flags can be set at creation time, but after that the
   // value should remain unchanged throughout the fiber's lifetime, particularly
   // before its child fibers are created.
+
   mode: TypeOfMode,
 
   // Effect
@@ -223,9 +234,9 @@ function FiberNode(
   mode: TypeOfMode,
 ) {
   // Instance
-  this.tag = tag;
-  this.key = key;
-  this.elementType = null;
+  this.tag = tag; // 标志着 fiber
+  this.key = key; // key值
+  this.elementType = null; // reconciliation过程中保存element.type的值
   this.type = null;
   this.stateNode = null;
 
